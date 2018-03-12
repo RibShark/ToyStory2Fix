@@ -1,5 +1,6 @@
-#Licenses
-##Toy Story 2 Fix
+# Licenses
+
+## Toy Story 2 Fix
 Copyright (C) 2018  RibShark
 
 This program is free software: you can redistribute it and/or modify
@@ -15,10 +16,10 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-##Other licenses
+## Other licenses
 This program uses code subject to other licenses.
 
-###WidescreenFixesPack
+### WidescreenFixesPack
 MIT License
 
 Copyright (c) 2017 ThirteenAG
@@ -41,8 +42,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-###DxWrapper
+### DxWrapper
 Copyright (C) 2017 Elisha Riedlinger
+
 This software is  provided 'as-is', without any express  or implied  warranty. In no event will the
 authors be held liable for any damages arising from the use of this software.
 Permission  is granted  to anyone  to use  this software  for  any  purpose,  including  commercial
