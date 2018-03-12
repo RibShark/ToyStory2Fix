@@ -1,6 +1,5 @@
 #include "stdafx.h"
 #include <MMSystem.h>
-#define INI_KEY "ToyStory2Fix"
 
 uintptr_t sub_4AB950_addr;
 uintptr_t sub_49D910_addr;
@@ -74,7 +73,8 @@ DWORD WINAPI Init(LPVOID bDelay)
 	if (bDelay)
 		while (pattern.clear().count_hint(1).empty()) { Sleep(0); };
 
-	CIniReader iniReader("");
+	CIniReader iniReader("ToyStory2Fix.ini");
+	constexpr char* INI_KEY = "ToyStory2Fix";
 
 	/* Fix framerate */
 	if (iniReader.ReadBoolean(INI_KEY, "FixFramerate", true)) {
