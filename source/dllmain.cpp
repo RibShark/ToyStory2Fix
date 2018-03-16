@@ -1,9 +1,13 @@
 #include "stdafx.h"
 #include <MMSystem.h>
 
-uintptr_t sub_4AB950_addr;
+uintptr_t sub_490860_addr;
 uintptr_t sub_49D910_addr;
 TIMECAPS tc;
+LARGE_INTEGER Frequency;
+LARGE_INTEGER PreviousTime, CurrentTime, ElapsedMicroseconds;
+int sleepTime;
+int framerateFactor;
 
 struct Variables
 {
@@ -12,20 +16,45 @@ struct Variables
 	float fAspectRatio;
 	float fScaleValue;
 	float f2DScaleValue;
+	uint32_t* speedMultiplier;
+	bool* isDemoMode;
 } Variables;
 
-/* Fix the framerate */
-int __cdecl sub_4AB950(DWORD dwMilliseconds) {
-	int result;
+void UpdateElapsedMicroseconds() {
+	QueryPerformanceCounter(&CurrentTime);
+	ElapsedMicroseconds.QuadPart = CurrentTime.QuadPart - PreviousTime.QuadPart;
+	ElapsedMicroseconds.QuadPart *= 1000000;
+	ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+}
+
+int __cdecl sub_490860(int a1) {
 	timeBeginPeriod(tc.wPeriodMin);
 
-	auto _sub_4AB950 = (int(__cdecl *)(DWORD)) sub_4AB950_addr;
-	/*if (dwMilliseconds > 16)*/
-		result = _sub_4AB950((dwMilliseconds / 16) * 16 + 4);
-	/*else result = _sub_4AB950(2);*/
+	if (PreviousTime.QuadPart == 0)
+		QueryPerformanceCounter(&PreviousTime); // initialise
 
+	UpdateElapsedMicroseconds();
+
+	framerateFactor = ((int)ElapsedMicroseconds.QuadPart / 16667) + 1;
+	// Demo mode needs 30fps maximum
+	if (*Variables.isDemoMode && framerateFactor < 2)
+		framerateFactor = 2;
+		
+	*Variables.speedMultiplier = std::clamp(framerateFactor, 1, 3);
+
+	sleepTime = 0;
+	// Loop until next frame due
+	do {
+		sleepTime = (16949 * framerateFactor - (uint32_t)ElapsedMicroseconds.QuadPart) / 1000; // calculate sleep time, 16949 µs = 59 fps (to limit frame drops)
+		sleepTime = ((sleepTime / tc.wPeriodMin) * tc.wPeriodMin) - tc.wPeriodMin; // truncate to multiple of period
+		if (sleepTime > 0)
+			Sleep(sleepTime); // sleep to avoid wasted CPU
+		UpdateElapsedMicroseconds();
+	} while (ElapsedMicroseconds.QuadPart < 16667 * framerateFactor);
+
+	QueryPerformanceCounter(&PreviousTime);
 	timeEndPeriod(tc.wPeriodMin);
-	return result;
+	return (int)(PreviousTime.QuadPart / 1000);
 }
 
 int sub_49D910() {
@@ -76,12 +105,24 @@ DWORD WINAPI Init(LPVOID bDelay)
 	CIniReader iniReader("ToyStory2Fix.ini");
 	constexpr char* INI_KEY = "ToyStory2Fix";
 
-	/* Fix framerate */
 	if (iniReader.ReadBoolean(INI_KEY, "FixFramerate", true)) {
 		timeGetDevCaps(&tc, sizeof(tc));
-		sub_4AB950_addr = (uintptr_t)hook::pattern("A0 ? ? ? ? 83 EC 10 84 C0 0F").count(1).get(0).get<uint32_t>(0);
-		injector::MakeCALL(pattern.get_first(9), sub_4AB950);
+		QueryPerformanceFrequency(&Frequency);
+
+		pattern = hook::pattern("8B 0D ? ? ? ? 2B F1 3B"); //4011DF
+		Variables.speedMultiplier = *(uint32_t**)pattern.get_first<uint32_t**>(2);
+		pattern = hook::pattern("39 3D ? ? ? ? 75 27"); //403C3A
+  		Variables.isDemoMode = *(bool**)pattern.get_first<bool*>(2);
+
+		pattern = hook::pattern("C7 05 ? ? ? ? 00 00 00 00 E8 ? ? ? ? E8 ? ? ? ? 33"); //49BBD8
+		sub_490860_addr = ((uintptr_t)pattern.get_first(15) + *pattern.get_first<uintptr_t>(11));
+		injector::MakeCALL(pattern.get_first(10), sub_490860);
+		pattern = hook::pattern("83 C4 08 6A 01 E8 ? ? ? ?"); //441906
+		injector::MakeCALL(pattern.get_first(5), sub_490860);
+		pattern = hook::pattern("6A 00 E8 ? ? ? ? 6A 01 E8 ? ? ? ? 83"); //4419F4
+		injector::MakeCALL(pattern.get_first(2), sub_490860);
 	}
+
 
 	/* Allow 32-bit modes regardless of registry settings - thanks hdc0 */
 	if (iniReader.ReadBoolean(INI_KEY, "Allow32Bit", true)) {
